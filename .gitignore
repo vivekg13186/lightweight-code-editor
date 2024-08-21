@@ -1,0 +1,4 @@
+﻿build
+.vscode
+.DS_Store
+glfw
