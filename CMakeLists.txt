@@ -1,43 +1,53 @@
-cmake_minimum_required( VERSION 3.5 )
+cmake_minimum_required(VERSION 3.12)
+project(lce)
 
-project( lightweight-code-editor )
+# Generate compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package( OpenGL REQUIRED )
-
-include_directories( ${OPENGL_INCLUDE_DIRS} )
-
-set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
-set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
-set( GLAD_GL "" )
-
-add_subdirectory( glfw )
-
-option( GLFW-CMAKE-STARTER-USE-GLFW-GLAD "Use GLAD from GLFW" OFF )
-
-if( GLFW-CMAKE-STARTER-USE-GLFW-GLAD )
-    include_directories("${GLFW_SOURCE_DIR}/deps")
-    set( GLAD_GL "${GLFW_SOURCE_DIR}/deps/glad/gl.h" )
+# Dependencies
+set(RAYLIB_VERSION 5.0)
+find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
+if (NOT raylib_FOUND) # If there's none, fetch and build raylib
+  include(FetchContent)
+  FetchContent_Declare(
+    raylib
+    DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+  )
+  FetchContent_GetProperties(raylib)
+  if (NOT raylib_POPULATED) # Have we downloaded raylib yet?
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_Populate(raylib)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE) # don't build the supplied examples
+    add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR})
+  endif()
 endif()
 
+# Our Project
+add_executable(${PROJECT_NAME})
+add_subdirectory(src)
 
-include_directories("${PROJECT_SOURCE_DIR}/glad")
-set( GLAD_GL "${PROJECT_SOURCE_DIR}/glad/include/glad/glad.h" )
-set( KHR_GL "${PROJECT_SOURCE_DIR}//glad/include/KHR/khrplatform.h" )
-set( STB_LIB "${PROJECT_SOURCE_DIR}/stb_image.h" )
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
 
-if( MSVC )
-    SET( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
+add_custom_command(
+	TARGET ${PROJECT_NAME} POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+	DEPENDS ${PROJECT_NAME})
+
+#set(raylib_VERBOSE 1)
+target_link_libraries(${PROJECT_NAME} raylib)
+
+# Web Configurations
+if (${PLATFORM} STREQUAL "Web")
+    # Tell Emscripten to build an example.html file.
+    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+    target_link_options(${PROJECT_NAME} PUBLIC "-sUSE_GLFW=3")
 endif()
 
-set( GLFW-CMAKE-STARTER-SRC main.cpp)
-set(GLD_SRC ${PROJECT_SOURCE_DIR}/glad/src/glad.c)
-
-add_executable( lce WIN32 ${GLFW-CMAKE-STARTER-SRC}  ${GLD_SRC} ${GLAD_GL} ${KHR_GL} ${STB_LIB}  )
-target_link_libraries( lce ${OPENGL_LIBRARIES} glfw )
-if( MSVC )
-    if(${CMAKE_VERSION} VERSION_LESS "3.6.0")
-        message( "\n\t[ WARNING ]\n\n\tCMake version lower than 3.6.\n\n\t - Please update CMake and rerun; OR\n\t - Manually set 'GLFW-CMake-starter' as StartUp Project in Visual Studio.\n" )
-    else()
-        set_property( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT lce )
-    endif()
+# Checks if OSX and links appropriate frameworks (Only required on MacOS)
+if (APPLE)
+    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
+    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
+    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
 endif()
