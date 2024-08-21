@@ -12,22 +12,27 @@ set( GLAD_GL "" )
 
 add_subdirectory( glfw )
 
-option( GLFW-CMAKE-STARTER-USE-GLFW-GLAD "Use GLAD from GLFW" ON )
+option( GLFW-CMAKE-STARTER-USE-GLFW-GLAD "Use GLAD from GLFW" OFF )
 
 if( GLFW-CMAKE-STARTER-USE-GLFW-GLAD )
     include_directories("${GLFW_SOURCE_DIR}/deps")
     set( GLAD_GL "${GLFW_SOURCE_DIR}/deps/glad/gl.h" )
 endif()
 
+
+include_directories("${PROJECT_SOURCE_DIR}/glad")
+set( GLAD_GL "${PROJECT_SOURCE_DIR}/glad/include/glad/glad.h" )
+set( KHR_GL "${PROJECT_SOURCE_DIR}//glad/include/KHR/khrplatform.h" )
+set( STB_LIB "${PROJECT_SOURCE_DIR}/stb_image.h" )
+
 if( MSVC )
     SET( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
 endif()
 
-set( GLFW-CMAKE-STARTER-SRC
-        main.cpp
-        )
+set( GLFW-CMAKE-STARTER-SRC main.cpp)
+set(GLD_SRC ${PROJECT_SOURCE_DIR}/glad/src/glad.c)
 
-add_executable( lce WIN32 ${GLFW-CMAKE-STARTER-SRC} ${GLAD_GL} )
+add_executable( lce WIN32 ${GLFW-CMAKE-STARTER-SRC}  ${GLD_SRC} ${GLAD_GL} ${KHR_GL} ${STB_LIB}  )
 target_link_libraries( lce ${OPENGL_LIBRARIES} glfw )
 if( MSVC )
     if(${CMAKE_VERSION} VERSION_LESS "3.6.0")
