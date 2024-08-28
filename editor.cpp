@@ -1,4 +1,5 @@
 #include "editor.h"
+#include <GLFW/glfw3.h>
 #define FONTSTASH_IMPLEMENTATION
 #include "fontstash.h"
 #define GLFONTSTASH_IMPLEMENTATION
@@ -48,18 +49,22 @@ Window::Window(std::string title,int width,int height){
 				exit(-1);
 			}
 			text.push_back('v');
+        	fonsSetSize(fs, 18);
+			fonsSetFont(fs, fontNormal);
 
+ FONT_COLOR_WHITE = glfonsRGBA(255,255,255,255);
+ 	fonsSetColor(fs, FONT_COLOR_WHITE);
 }
 void Window::loop(){
     while (!glfwWindowShouldClose(window))
 	{
 	float sx, sy, dx, dy, lh = 0;
 			int width, height;
-			unsigned int white,black,brown,blue;
+
 			glfwGetFramebufferSize(window, &width, &height);
 			// Update and render
 			glViewport(0, 0, width, height);
-			glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -75,11 +80,8 @@ void Window::loop(){
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_CULL_FACE);
-		 line(10,10,width,height);
-			fonsSetSize(fs, 124.0f);
-					fonsSetFont(fs, fontNormal);
-					fonsSetColor(fs, white);
-					dx = fonsDrawText(fs, 10,100,text.c_str(),NULL);
+		 //line(10,10,width,height);
+  drawtext(text.c_str(),10,10);
 			glEnable(GL_DEPTH_TEST);
 	glfwSwapBuffers(window);
 
@@ -89,8 +91,11 @@ void Window::loop(){
 
 void Window::keyCallback(int  key,int   scancode,int   action,int   mods){
     std::cout<<"Key "<<key<<" Scancode " <<scancode <<" Action "<<action<<" Mods "<<mods<<"\n";
-    if(key==GLFW_KEY_A && scancode ==38){
-       text.push_back('a');
+    if(key>=GLFW_KEY_A && key<=GLFW_KEY_Z){
+       text.push_back((char)key);
+    }
+    if(key==GLFW_KEY_ENTER){
+        text.push_back('\n');
     }
     if(key ==GLFW_KEY_Q && scancode ==24){
         exit(0);
@@ -107,4 +112,7 @@ void Window::line(float sx, float sy, float ex, float ey)
 	glEnd();
 }
 
- void Graphics::drawtext(const char* text,int x,int y){}
+ void Window::drawtext(const char* text,int x,int y){
+
+			 fonsDrawText(fs, 10,100,text  ,NULL);
+ }
