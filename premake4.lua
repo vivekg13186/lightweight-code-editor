@@ -1,9 +1,9 @@
-solution "editor1"
+solution "cle"
 location("build")
 configurations { "Debug", "Release" }
 platforms { "native", "x64", "x32" }
 
-project "editor1"
+project "lce"
 kind "ConsoleApp"
 language "C++"
 files { "main.cpp", "editor.cpp" }

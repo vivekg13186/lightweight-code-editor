@@ -4,17 +4,31 @@
 #include <string>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
+#include <format>
 #include "fontstash.h"
 
 #include <GL/glew.h>
+
 #include "GLFW/glfw3.h"
 
 
+class Document{
+    public:
+    Document();
+    std::vector<std::string*> lines;
+    int currentLine =0;
+    std::string* getLine(int lno);
+    int getLineCount();
+    void appendChar(char c);
+
+};
 
 class Window{
   public :
    int FONT_COLOR_WHITE;
-  GLFWwindow* window;
+   Document doc;
+   GLFWwindow* window;
    FONScontext* fs ;
    int fontNormal;
    std::string text;
@@ -26,7 +40,6 @@ class Window{
     void drawtext(const char* text,int x,int y);
 
 };
-
 
 
 #endif

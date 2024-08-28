@@ -1,5 +1,6 @@
 #include "editor.h"
 #include <GLFW/glfw3.h>
+#include <string>
 #define FONTSTASH_IMPLEMENTATION
 #include "fontstash.h"
 #define GLFONTSTASH_IMPLEMENTATION
@@ -52,7 +53,7 @@ Window::Window(std::string title,int width,int height){
         	fonsSetSize(fs, 18);
 			fonsSetFont(fs, fontNormal);
 
- FONT_COLOR_WHITE = glfonsRGBA(255,255,255,255);
+ FONT_COLOR_WHITE = glfonsRGBA(236,146,85,255);
  	fonsSetColor(fs, FONT_COLOR_WHITE);
 }
 void Window::loop(){
@@ -64,7 +65,7 @@ void Window::loop(){
 			glfwGetFramebufferSize(window, &width, &height);
 			// Update and render
 			glViewport(0, 0, width, height);
-			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClearColor(0.1607f, 0.152f, 0.141f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -81,7 +82,16 @@ void Window::loop(){
 			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_CULL_FACE);
 		 //line(10,10,width,height);
-  drawtext(text.c_str(),10,10);
+			int linex=20;
+		for(int i=0;i<doc.getLineCount();i++){
+		        std::string* line = doc.getLine(i);
+
+				drawtext(std::to_string(i).c_str(),5,linex);
+				drawtext(line->c_str(),40,linex);
+				linex+=16;
+		}
+
+
 			glEnable(GL_DEPTH_TEST);
 	glfwSwapBuffers(window);
 
@@ -92,10 +102,11 @@ void Window::loop(){
 void Window::keyCallback(int  key,int   scancode,int   action,int   mods){
     std::cout<<"Key "<<key<<" Scancode " <<scancode <<" Action "<<action<<" Mods "<<mods<<"\n";
     if(key>=GLFW_KEY_A && key<=GLFW_KEY_Z){
-       text.push_back((char)key);
+       doc.appendChar((char)key);
+        //text.push_back((char)scancode);
     }
     if(key==GLFW_KEY_ENTER){
-        text.push_back('\n');
+        doc.appendChar('\n');
     }
     if(key ==GLFW_KEY_Q && scancode ==24){
         exit(0);
@@ -114,5 +125,27 @@ void Window::line(float sx, float sy, float ex, float ey)
 
  void Window::drawtext(const char* text,int x,int y){
 
-			 fonsDrawText(fs, 10,100,text  ,NULL);
+			 fonsDrawText(fs, x,y,text  ,NULL);
+ }
+
+
+ std::string* Document::getLine(int lno){
+     return  lines.at(lno);
+ }
+ int Document::getLineCount(){
+     return lines.size();
+ }
+ Document::Document(){
+     currentLine=0;
+     lines.push_back(new std::string(""));
+ }
+ void Document::appendChar(char c){
+     if(c=='\n'){
+        std::cout<<"new line";
+        lines.push_back(new std::string(""));
+        currentLine++;
+     }else{
+         lines.at(currentLine)->push_back(c);
+     }
+
  }
