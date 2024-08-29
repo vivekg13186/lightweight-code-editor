@@ -1,5 +1,6 @@
 #include "editor.h"
 #include <GLFW/glfw3.h>
+#include <cstdint>
 #include <string>
 #define FONTSTASH_IMPLEMENTATION
 #include "fontstash.h"
@@ -7,13 +8,21 @@
 #include "glfontstash.h"
 
 #define DELAY_BETWEEN_KEYSTROKE_MS 20
+int EDITOR_FONT_SIZE=16;
+int EDITOR_LINE_SPACE=7;
 int keycode[16];
 int keycode_q_index;
+uint64_t last_cusor_render_time =0;
+int cursor_on=0
+;
+
 unsigned long long last_key_actioned=0;
 unsigned long long timeSinceEpochMillisec() {
   using namespace std::chrono;
   return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
+
+
 
   static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods){
       if(action != GLFW_PRESS)return;
@@ -33,6 +42,13 @@ unsigned long long timeSinceEpochMillisec() {
      }
   }
 
+  void drawCursor(int x,int y){
+      glBegin(GL_LINES);
+	glColor4ub(255,244,244,255);
+	glVertex2f(x,y);
+	glVertex2f(x,y+14);
+	glEnd();
+  }
 Window::Window(std::string title,int width,int height){
     std::cout << title << "\nwidth x height "<<width << " x " << "height" << "\n";
     if (!glfwInit()) {
@@ -67,23 +83,26 @@ Window::Window(std::string title,int width,int height){
 			exit(1);
 		}
 		  fontNormal = FONS_INVALID;
-		fontNormal = fonsAddFont(fs, "sans", "/home/vivek/Developer/editor1/JetBrainsMonoNerdFont-Regular.ttf");
+		fontNormal = fonsAddFont(fs, "sans", "/home/vivek/Developer/lightweight-code-editor/Monaco.ttf");
 			if (fontNormal == FONS_INVALID) {
 				printf("Could not add font normal.\n");
 				exit(-1);
 			}
 			text.push_back('v');
-        	fonsSetSize(fs, 18);
+        	fonsSetSize(fs, EDITOR_FONT_SIZE);
 			fonsSetFont(fs, fontNormal);
 
  FONT_COLOR_WHITE = glfonsRGBA(236,146,85,255);
  	fonsSetColor(fs, FONT_COLOR_WHITE);
+
 }
 void Window::loop(){
     while (!glfwWindowShouldClose(window))
 	{
 	float sx, sy, dx, dy, lh = 0;
 			int width, height;
+
+
 
 			for(int i=0;i<keycode_q_index;i++){
 
@@ -111,14 +130,28 @@ void Window::loop(){
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_CULL_FACE);
-		 //line(10,10,width,height);
+			uint64_t current_time=timeSinceEpochMillisec();
+
+		    if((current_time - last_cusor_render_time)>500){
+						cursor_on = cursor_on == 0 ?1 :0;
+						last_cusor_render_time = current_time;
+			}
+
 			int linex=20;
+
 		for(int i=0;i<doc.getLineCount();i++){
 		        std::string* line = doc.getLine(i);
-
 				drawtext(std::to_string(i).c_str(),5,linex);
 				drawtext(line->c_str(),40,linex);
-				linex+=16;
+				//drawLine(5,linex,100.0f,linex);
+				linex+=EDITOR_FONT_SIZE+EDITOR_LINE_SPACE;
+				//drawLine(5,linex,100.0f,linex);
+		}
+		if(cursor_on==0){
+		int cy = linex-(EDITOR_FONT_SIZE+EDITOR_LINE_SPACE);
+		int cx = doc.getLine(doc.currentLine)->length()*(EDITOR_FONT_SIZE/2);
+		cx+=40+3;
+		 drawCursor(cx,cy);
 		}
 
 
@@ -144,17 +177,18 @@ void Window::keyCallback(int  key,int   scancode,int   action,int   mods){
 */
 }
 
-void Window::line(float sx, float sy, float ex, float ey)
+
+void Window::drawLine(float sx, float sy, float ex, float ey)
 {
 	glBegin(GL_LINES);
-	glColor4ub(255,255,255,255);
+	glColor4ub(210,210,210,255);
 	glVertex2f(sx,sy);
 	glVertex2f(ex,ey);
 	glEnd();
 }
 
  void Window::drawtext(const char* text,int x,int y){
-
+fonsSetAlign(fs, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
 			 fonsDrawText(fs, x,y,text  ,NULL);
  }
 

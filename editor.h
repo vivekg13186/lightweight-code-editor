@@ -13,6 +13,11 @@
 #include "GLFW/glfw3.h"
 #include <chrono>
 
+typedef struct {
+    int x;int y;
+}Pos;
+
+
 class Document{
     public:
     Document();
@@ -36,7 +41,7 @@ class Window{
    Window(std::string title,int widht,int height);
    void keyCallback(int key, int scancode, int action, int mods);
    void loop();
-   void line(float sx, float sy, float ex, float ey);
+   void drawLine(float sx, float sy, float ex, float ey);
     void drawtext(const char* text,int x,int y);
 
 };
