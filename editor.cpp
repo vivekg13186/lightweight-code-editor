@@ -5,9 +5,32 @@
 #include "fontstash.h"
 #define GLFONTSTASH_IMPLEMENTATION
 #include "glfontstash.h"
+
+#define DELAY_BETWEEN_KEYSTROKE_MS 20
+int keycode[16];
+int keycode_q_index;
+unsigned long long last_key_actioned=0;
+unsigned long long timeSinceEpochMillisec() {
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
   static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods){
-        Window* w1  = (Window*) glfwGetWindowUserPointer(window);
-         w1->keyCallback(  key,   scancode,   action,   mods);
+      if(action != GLFW_PRESS)return;
+     // unsigned long long current_time = timeSinceEpochMillisec();
+     // unsigned long long diff_time = current_time-last_key_actioned;
+     // std::cout<< last_key_actioned <<" last "<<current_time << " : " <<diff_time<<" dif \n";
+     // if(diff_time<DELAY_BETWEEN_KEYSTROKE_MS){
+      //    return;
+      //}
+      //last_key_actioned=current_time;
+       if(keycode_q_index<16){
+           keycode[keycode_q_index++]=key;
+       }
+
+       if(key ==GLFW_KEY_Q && scancode ==24){
+         exit(0);
+     }
   }
 
 Window::Window(std::string title,int width,int height){
@@ -62,6 +85,13 @@ void Window::loop(){
 	float sx, sy, dx, dy, lh = 0;
 			int width, height;
 
+			for(int i=0;i<keycode_q_index;i++){
+
+
+
+			 doc.appendChar(keycode[i]);
+			}
+			keycode_q_index=0;
 			glfwGetFramebufferSize(window, &width, &height);
 			// Update and render
 			glViewport(0, 0, width, height);
@@ -100,7 +130,7 @@ void Window::loop(){
 }
 
 void Window::keyCallback(int  key,int   scancode,int   action,int   mods){
-    std::cout<<"Key "<<key<<" Scancode " <<scancode <<" Action "<<action<<" Mods "<<mods<<"\n";
+    /*std::cout<<"Key "<<key<<" Scancode " <<scancode <<" Action "<<action<<" Mods "<<mods<<"\n";
     if(key>=GLFW_KEY_A && key<=GLFW_KEY_Z){
        doc.appendChar((char)key);
         //text.push_back((char)scancode);
@@ -111,7 +141,7 @@ void Window::keyCallback(int  key,int   scancode,int   action,int   mods){
     if(key ==GLFW_KEY_Q && scancode ==24){
         exit(0);
     }
-
+*/
 }
 
 void Window::line(float sx, float sy, float ex, float ey)
@@ -139,8 +169,19 @@ void Window::line(float sx, float sy, float ex, float ey)
      currentLine=0;
      lines.push_back(new std::string(""));
  }
- void Document::appendChar(char c){
-     if(c=='\n'){
+ void Document::appendChar(int c){
+
+     if(c==GLFW_KEY_BACKSPACE){
+         if(lines.at(currentLine)->size()==0){
+             if(lines.size()>1){
+             lines.pop_back();
+             }
+
+         }else {
+         lines.at(currentLine)->pop_back();
+         }
+
+     }else if(c==GLFW_KEY_ENTER){
         std::cout<<"new line";
         lines.push_back(new std::string(""));
         currentLine++;

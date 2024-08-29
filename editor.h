@@ -11,7 +11,7 @@
 #include <GL/glew.h>
 
 #include "GLFW/glfw3.h"
-
+#include <chrono>
 
 class Document{
     public:
@@ -20,7 +20,7 @@ class Document{
     int currentLine =0;
     std::string* getLine(int lno);
     int getLineCount();
-    void appendChar(char c);
+    void appendChar(int c);
 
 };
 
