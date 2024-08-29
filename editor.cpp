@@ -1,6 +1,7 @@
 #include "editor.h"
 #include <GLFW/glfw3.h>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #define FONTSTASH_IMPLEMENTATION
 #include "fontstash.h"
@@ -16,6 +17,17 @@ uint64_t last_cusor_render_time =0;
 int cursor_on=0
 ;
 
+int cursor_row=0;
+int cursor_col=0;
+
+
+static inline int min(int i,int j){
+    return  i>j ? i  : j;
+}
+
+static inline int max(int i,int j){
+    return  i>j ? j  : i;
+}
 unsigned long long last_key_actioned=0;
 unsigned long long timeSinceEpochMillisec() {
   using namespace std::chrono;
@@ -105,11 +117,40 @@ void Window::loop(){
 
 
 			for(int i=0;i<keycode_q_index;i++){
-
-
-
+			 int k =keycode[i];
+			 if(k==GLFW_KEY_LEFT){
+			    cursor_col--;
+				if(cursor_col<0){
+				    cursor_row=min(cursor_row-1,0);
+					cursor_col=doc.getLineCharLength(cursor_row);
+				}
+			}else if(k==GLFW_KEY_RIGHT){
+			     cursor_col++;
+				if(cursor_col>doc.getLineCharLength(cursor_row)){
+				    int new_row  = min(cursor_row+1,doc.getLineCount());
+					if(cursor_row!=new_row){
+					   cursor_col=0;
+					   cursor_row=new_row;
+					}else{
+					  cursor_col--;
+					}
+				}
+			}else if(k==GLFW_KEY_UP){
+			     cursor_row = min(cursor_row-1,0);
+				 cursor_col  = min(cursor_col ,doc.getLineCharLength(cursor_row));
+			}else if(k==GLFW_KEY_DOWN){
+			    cursor_row = min(cursor_row,doc.getLineCount()-1);
+				cursor_col = min(cursor_col ,doc.getLineCharLength(cursor_row));
+			}else if(k==GLFW_KEY_ENTER){
+			 cursor_col=0;
+				cursor_row++;
+		      doc.appendChar(keycode[i]);
+			}else {
+			 cursor_col++;
 			 doc.appendChar(keycode[i]);
 			}
+}
+            //std::cout << "cursor cr cc" << cursor_row << ":" <<cursor_col << "\n";
 			keycode_q_index=0;
 			glfwGetFramebufferSize(window, &width, &height);
 			// Update and render
@@ -137,20 +178,25 @@ void Window::loop(){
 						last_cusor_render_time = current_time;
 			}
 
-			int linex=20;
+		int line_row_height  = EDITOR_FONT_SIZE+EDITOR_LINE_SPACE;
+		int editor_text_offset_height = 20;
+		int linex=editor_text_offset_height;
 
 		for(int i=0;i<doc.getLineCount();i++){
 		        std::string* line = doc.getLine(i);
 				drawtext(std::to_string(i).c_str(),5,linex);
 				drawtext(line->c_str(),40,linex);
 				//drawLine(5,linex,100.0f,linex);
-				linex+=EDITOR_FONT_SIZE+EDITOR_LINE_SPACE;
+				linex+=line_row_height;
 				//drawLine(5,linex,100.0f,linex);
 		}
 		if(cursor_on==0){
-		int cy = linex-(EDITOR_FONT_SIZE+EDITOR_LINE_SPACE);
-		int cx = doc.getLine(doc.currentLine)->length()*(EDITOR_FONT_SIZE/2);
-		cx+=40+3;
+		//int cy = linex-(EDITOR_FONT_SIZE+EDITOR_LINE_SPACE);
+		//int cx = doc.getLine(doc.currentLine)->length()*(EDITOR_FONT_SIZE/2);
+		 int cx = cursor_col*(EDITOR_FONT_SIZE/2);
+	     cx+=40+3;
+		int cy = (cursor_row*line_row_height)+ editor_text_offset_height;
+		//int cy =abs((cursor_row*EDITOR_FONT_SIZE+EDITOR_LINE_SPACE)-(EDITOR_FONT_SIZE+EDITOR_LINE_SPACE));
 		 drawCursor(cx,cy);
 		}
 
@@ -223,4 +269,10 @@ fonsSetAlign(fs, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
          lines.at(currentLine)->push_back(c);
      }
 
+ }
+ int Document::getLineCharLength(int row){
+     if(row>=lines.size()){
+         return -1;
+     }
+     return  lines.at(row)->length();
  }

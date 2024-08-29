@@ -26,6 +26,7 @@ class Document{
     std::string* getLine(int lno);
     int getLineCount();
     void appendChar(int c);
+    int getLineCharLength(int row);
 
 };
 
