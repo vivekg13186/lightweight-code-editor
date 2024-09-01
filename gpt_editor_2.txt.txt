@@ -1,0 +1,401 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <set>
+#include <algorithm>
+#include <fstream>
+#include <codecvt>
+#include <locale>
+
+class GapBuffer {
+public:
+    GapBuffer(int initial_size = 10)
+        : gap_start(0), gap_end(initial_size), buffer(initial_size, L'\0') {}
+
+    void insert(wchar_t c) {
+        handleLineBreak(c);
+        if (gap_start == gap_end) {
+            expandBuffer();
+        }
+        buffer[gap_start++] = c;
+    }
+
+    void insertText(const std::wstring& text) {
+        for (size_t i = 0; i < text.size(); ++i) {
+            handleLineBreak(text[i]);
+            if (text[i] == L'\r' && (i + 1) < text.size() && text[i + 1] == L'\n') {
+                insert(L'\n');
+                ++i;  // Skip the '\n' since we treat \r\n as a single unit
+            } else {
+                insert(text[i]);
+            }
+        }
+    }
+
+    void deleteBeforeCursor() {
+        if (gap_start > 0) {
+            wchar_t c = buffer[--gap_start];
+            if (c == L'\n' && gap_start > 0 && buffer[gap_start - 1] == L'\r') {
+                --gap_start;  // Handle \r\n as a single unit
+            }
+        }
+    }
+
+    void deleteAfterCursor() {
+        if (gap_end < buffer.size()) {
+            wchar_t c = buffer[gap_end];
+            if (c == L'\r' && (gap_end + 1) < buffer.size() && buffer[gap_end + 1] == L'\n') {
+                ++gap_end;  // Handle \r\n as a single unit
+            }
+            ++gap_end;
+        }
+    }
+
+    void moveCursorLeft() {
+        if (gap_start > 0) {
+            if (gap_start > 1 && buffer[gap_start - 1] == L'\n' && buffer[gap_start - 2] == L'\r') {
+                gap_start -= 2;  // Move across \r\n as a single unit
+            } else {
+                gap_start--;
+            }
+            buffer[--gap_end] = buffer[gap_start];
+        }
+    }
+
+    void moveCursorRight() {
+        if (gap_end < buffer.size()) {
+            if (gap_end + 1 < buffer.size() && buffer[gap_end] == L'\r' && buffer[gap_end + 1] == L'\n') {
+                gap_end += 2;  // Move across \r\n as a single unit
+                buffer[gap_start++] = L'\r';
+                buffer[gap_start++] = L'\n';
+            } else {
+                buffer[gap_start++] = buffer[gap_end++];
+            }
+        }
+    }
+
+    std::wstring getText() const {
+        std::wstring text;
+        text.reserve(buffer.size() - (gap_end - gap_start));
+        for (int i = 0; i < gap_start; ++i) {
+            text += buffer[i];
+        }
+        for (int i = gap_end; i < buffer.size(); ++i) {
+            text += buffer[i];
+        }
+        return text;
+    }
+
+    std::wstring getVisibleText(int scroll_y, int scroll_x, int screen_width, int screen_height) const {
+        std::wstring full_text = getText();
+        std::vector<std::wstring> lines = splitLines(full_text);
+
+        std::wstring visible_text;
+        for (int i = scroll_y; i < std::min(scroll_y + screen_height, static_cast<int>(lines.size())); ++i) {
+            if (lines[i].size() > scroll_x) {
+                visible_text += lines[i].substr(scroll_x, screen_width) + L'\n';
+            } else {
+                visible_text += L'\n';
+            }
+        }
+        return visible_text;
+    }
+
+    std::wstring getSelectedText(int start, int end) const {
+        std::wstring selected_text;
+        for (int i = start; i < end; ++i) {
+            if (i < gap_start) {
+                selected_text += buffer[i];
+            } else {
+                selected_text += buffer[gap_end + (i - gap_start)];
+            }
+        }
+        return selected_text;
+    }
+
+    int getCursorPos() const {
+        return gap_start;
+    }
+
+    void moveCursorTo(int pos) {
+        while (gap_start < pos) {
+            moveCursorRight();
+        }
+        while (gap_start > pos) {
+            moveCursorLeft();
+        }
+    }
+
+    void moveCursorToStart() {
+        while (gap_start > 0) {
+            moveCursorLeft();
+        }
+    }
+
+    void moveCursorToEnd() {
+        while (gap_end < buffer.size()) {
+            moveCursorRight();
+        }
+    }
+
+    void deleteSelectedText(int start, int end) {
+        if (start < end) {
+            int length = end - start;
+            while (length-- > 0) {
+                moveCursorTo(start);
+                deleteAfterCursor();
+            }
+        }
+    }
+
+    int findNextOccurrence(const std::wstring& word, int start_pos) {
+        std::wstring text = getText();
+        size_t found_pos = text.find(word, start_pos);
+        return (found_pos == std::wstring::npos) ? -1 : static_cast<int>(found_pos);
+    }
+
+    int getLineCount() const {
+        std::wstring text = getText();
+        return std::count(text.begin(), text.end(), L'\n') + 1;
+    }
+
+    void loadFromFile(const std::string& filename) {
+        std::wifstream file(filename);
+        file.imbue(std::locale(file.getloc(), new std::codecvt_utf8<wchar_t>));
+        std::wstring line;
+        while (std::getline(file, line)) {
+            insertText(line + L'\n');
+        }
+        file.close();
+    }
+
+private:
+    std::vector<wchar_t> buffer;
+    int gap_start;
+    int gap_end;
+
+    void expandBuffer() {
+        int new_size = buffer.size() * 2;
+        std::vector<wchar_t> new_buffer(new_size, L'\0');
+
+        for (int i = 0; i < gap_start; ++i) {
+            new_buffer[i] = buffer[i];
+        }
+        int new_gap_end = new_size - (buffer.size() - gap_end);
+        for (int i = gap_end; i < buffer.size(); ++i) {
+            new_buffer[new_gap_end++] = buffer[i];
+        }
+        gap_end = new_gap_end;
+        buffer = std::move(new_buffer);
+    }
+
+    void handleLineBreak(wchar_t c) {
+        if (c == L'\r' || c == L'\n') {
+            insert(L'\n');  // Normalize line breaks to just '\n'
+        }
+    }
+
+    std::vector<std::wstring> splitLines(const std::wstring& text) const {
+        std::vector<std::wstring> lines;
+        std::wstring line;
+        for (wchar_t c : text) {
+            if (c == L'\n') {
+                lines.push_back(line);
+                line.clear();
+            } else {
+                line += c;
+            }
+        }
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
+        return lines;
+    }
+};
+
+class TextEditor {
+public:
+    TextEditor(int initial_size = 10, int screen_w = 80, int screen_h = 24)
+        : gap_buffer(initial_size), screen_width(screen_w), screen_height(screen_h),
+          scroll_x(0), scroll_y(0), cursor_x(0), cursor_y(0), selection_active(false),
+          selection_start(0), selection_end(0), shift_pressed(false) {}
+
+    void handleKeyPress(wchar_t key) {
+        if (key == L'\033') {  // Escape key or special sequence start
+            return;  // Handle escape sequences in another function
+        }
+
+        if (selection_active && key != 127 && key != 8) {
+            gap_buffer.deleteSelectedText(selection_start, selection_end);
+            selection_active = false;
+        }
+
+        switch (key) {
+            case 127:  // Backspace
+                if (selection_active) {
+                    gap_buffer.deleteSelectedText(selection_start, selection_end);
+                    selection_active = false;
+                } else {
+                    gap_buffer.deleteBeforeCursor();
+                }
+                break;
+            case 8:  // Delete
+                if (selection_active) {
+                    gap_buffer.deleteSelectedText(selection_start, selection_end);
+                    selection_active = false;
+                } else {
+                    gap_buffer.deleteAfterCursor();
+                }
+                break;
+            default:
+                gap_buffer.insert(key);
+                break;
+        }
+        updateCursor();
+    }
+
+    void handleCtrlKey(wchar_t key) {
+        if (selection_active) {
+            switch (key) {
+                case L'c':  // Ctrl+C
+                    clipboard = gap_buffer.getSelectedText(selection_start, selection_end);
+                    break;
+                case L'x':  // Ctrl+X
+                    clipboard = gap_buffer.getSelectedText(selection_start, selection_end);
+                    gap_buffer.deleteSelectedText(selection_start, selection_end);
+                    selection_active = false;
+                    break;
+                case L'v':  // Ctrl+V
+                    gap_buffer.deleteSelectedText(selection_start, selection_end);
+                    gap_buffer.insertText(clipboard);
+                    selection_active = false;
+                    break;
+                case L'd':  // Ctrl+D
+                    multicursor_positions.insert(gap_buffer.getCursorPos());
+                    int next_occurrence = gap_buffer.findNextOccurrence(clipboard, gap_buffer.getCursorPos() + 1);
+                    if (next_occurrence != -1) {
+                        gap_buffer.moveCursorTo(next_occurrence);
+                    }
+                    break;
+            }
+        }
+    }
+
+    void handleArrowKey(bool is_vertical, bool is_positive) {
+        if (is_vertical) {
+            if (is_positive) {
+                moveCursorDown();
+            } else {
+                moveCursorUp();
+            }
+        } else {
+            if (is_positive) {
+                moveCursorRight();
+            } else {
+                moveCursorLeft();
+            }
+        }
+        updateCursor();
+    }
+
+    void handleScroll(bool is_vertical, bool is_positive) {
+        if (is_vertical) {
+            if (is_positive && scroll_y + screen_height < gap_buffer.getLineCount()) {
+                scroll_y++;
+            } else if (!is_positive && scroll_y > 0) {
+                scroll_y--;
+            }
+        } else {
+            if (is_positive && cursor_x >= screen_width) {
+                scroll_x++;
+            } else if (!is_positive && scroll_x > 0) {
+                scroll_x--;
+            }
+        }
+    }
+
+    void render() const {
+        std::wstring visible_text = gap_buffer.getVisibleText(scroll_y, scroll_x, screen_width, screen_height);
+        std::vector<std::wstring> lines = gap_buffer.splitLines(visible_text);
+        for (size_t i = 0; i < lines.size(); ++i) {
+            std::wcout << (scroll_y + i + 1) << L": " << lines[i] << std::endl;
+        }
+        std::wcout << L"Cursor at (" << cursor_x << ", " << cursor_y << L")\n";
+    }
+
+    void pressShift(bool shift) {
+        shift_pressed = shift;
+    }
+
+private:
+    GapBuffer gap_buffer;
+    int screen_width;
+    int screen_height;
+    int scroll_x;
+    int scroll_y;
+    int cursor_x;
+    int cursor_y;
+    bool selection_active;
+    int selection_start;
+    int selection_end;
+    bool shift_pressed;
+    std::wstring clipboard;
+    std::set<int> multicursor_positions;
+
+    void moveCursorLeft() {
+        if (cursor_x > 0) {
+            cursor_x--;
+            gap_buffer.moveCursorLeft();
+        } else if (scroll_x > 0) {
+            scroll_x--;
+        }
+    }
+
+    void moveCursorRight() {
+        if (cursor_x < screen_width - 1) {
+            cursor_x++;
+            gap_buffer.moveCursorRight();
+        } else {
+            scroll_x++;
+        }
+    }
+
+    void moveCursorUp() {
+        if (cursor_y > 0) {
+            cursor_y--;
+            gap_buffer.moveCursorTo(gap_buffer.getCursorPos() - (cursor_x + 1 + scroll_x));
+        } else if (scroll_y > 0) {
+            scroll_y--;
+        }
+    }
+
+    void moveCursorDown() {
+        if (cursor_y < screen_height - 1) {
+            cursor_y++;
+            gap_buffer.moveCursorTo(gap_buffer.getCursorPos() + cursor_x + 1 + scroll_x);
+        } else {
+            scroll_y++;
+        }
+    }
+
+    void updateCursor() {
+        cursor_y = gap_buffer.getCursorPos() / screen_width;
+        cursor_x = gap_buffer.getCursorPos() % screen_width;
+    }
+};
+
+int main() {
+    TextEditor editor(100, 80, 24);
+    std::string filename = "example.txt";
+    
+    editor.gap_buffer.loadFromFile(filename);
+    editor.render();  // Renders the visible part of the text with scrolling enabled and line numbers
+
+    // Simulate scrolling down
+    for (int i = 0; i < 5; ++i) {
+        editor.handleScroll(true, true);  // Scroll down
+        editor.render();  // Re-render with the new scroll position and line numbers
+    }
+
+    return 0;
+}
