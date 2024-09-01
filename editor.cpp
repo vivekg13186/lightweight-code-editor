@@ -20,7 +20,12 @@ int cursor_on=0
 int cursor_row=0;
 int cursor_col=0;
 
-
+static inline int RGBToInt(int r, int g, int b) {
+  int c = r;
+  c = (c << 8) | g;
+  c = (c << 8) | b;
+  return c;
+}
 static inline int min(int i,int j){
     return  i>j ? i  : j;
 }
@@ -106,6 +111,7 @@ Window::Window(std::string title,int width,int height){
 
  FONT_COLOR_WHITE = glfonsRGBA(236,146,85,255);
  	fonsSetColor(fs, FONT_COLOR_WHITE);
+  fonsSetAlign(fs, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
 
 }
 void Window::loop(){
@@ -142,8 +148,8 @@ void Window::loop(){
 			    cursor_row = min(cursor_row,doc.getLineCount()-1);
 				cursor_col = min(cursor_col ,doc.getLineCharLength(cursor_row));
 			}else if(k==GLFW_KEY_ENTER){
-			 cursor_col=0;
-				cursor_row++;
+			  cursor_col=0;
+			  cursor_row++;
 		      doc.appendChar(keycode[i]);
 			}else {
 			 cursor_col++;
@@ -238,6 +244,11 @@ fonsSetAlign(fs, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
 			 fonsDrawText(fs, x,y,text  ,NULL);
  }
 
+ void Window::drawText(const char* text,int x,int y,int r,int b,int g){
+	fonsSetColor(fs, fonsRG);
+			 fonsDrawText(fs, x,y,text  ,NULL);
+ }
+
 
  std::string* Document::getLine(int lno){
      return  lines.at(lno);
@@ -265,6 +276,9 @@ fonsSetAlign(fs, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
         std::cout<<"new line";
         lines.push_back(new std::string(""));
         currentLine++;
+     }else if(c==GLFW_KEY_BACKSPACE){
+         lines.at(currentLine)->push_back(c);
+
      }else{
          lines.at(currentLine)->push_back(c);
      }

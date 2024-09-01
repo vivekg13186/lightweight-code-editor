@@ -43,7 +43,8 @@ class Window{
    void keyCallback(int key, int scancode, int action, int mods);
    void loop();
    void drawLine(float sx, float sy, float ex, float ey);
-    void drawtext(const char* text,int x,int y);
+   void drawtext(const char* text,int x,int y);
+   void drawText(const char* text,int x,int y,int r,int b,int g);
 
 };
 
